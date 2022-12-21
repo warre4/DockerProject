@@ -1,0 +1,60 @@
+{
+  "index_patterns": "movies*",
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 2
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "@version": {
+          "type": "short"
+        },
+        "genres": {
+          "type": "keyword"
+        },
+        "movieId": {
+          "type": "integer"
+        },
+        "description": {
+          "type": "text"
+        },
+        "title": {
+          "type": "keyword",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "popularity": {
+          "type": "float"
+        },
+        "imdbId": {
+          "type": "integer"
+        },
+        "vote_count": {
+          "type": "integer"
+        },
+        "vote_average": {
+          "type": "float"
+        },
+        "adult": {
+          "type": "boolean"
+        },
+        "year": {
+          "type": "date"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Movies template."
+  }
+}
