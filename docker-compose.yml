@@ -1,33 +1,11 @@
 version: '3.9'
 
 services:
-#  reverse-proxy:
-#    # The official v2 Traefik docker image
-#    image: traefik:v2.9
-#    # Enables the web UI and tells Traefik to listen to docker
-#    command: --api.insecure=true --providers.docker
-#    ports:
-#      # The HTTP port
-#      - "80:80"
-#      - ${KIBANA_PORT}:5601
-#    labels:
-#      - "traefik.http.routers.traefik.rule=Host(`localhost`)"
-#      - traefik.http.services.traefik.loadbalancer.server.port=8080
-#      - "traefik.http.routers.traefik.middlewares=admin"
-#      - "traefik.http.middlewares.admin.basicauth.users=someone:$$2y$$05$$kFlRR1JD/uvKC1GcYqPDveK7XjgdnMpz2RCgJGe0JCHYwgcQcPvRe"
-#    volumes:
-#      # So that Traefik can listen to the Docker events
-#      - /var/run/docker.sock:/var/run/docker.sock
-
   api:
     hostname: api
-    image: warre4/api
     build: ./api
     ports:
       - 8080:8080
-#    labels:
-#      - "traefik.http.routers.api.middlewares=admin"
-#      - "traefik.http.middlewares.admin.basicauth.users=someone:$$2y$$05$$kFlRR1JD/uvKC1GcYqPDveK7XjgdnMpz2RCgJGe0JCHYwgcQcPvRe"
     environment:
       - POSTGRES_USER=someone
       - POSTGRES_PASSWORD=else
@@ -40,31 +18,26 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
-#    expose:
-#        - 8080
+    networks:
+      - frontend-network
+      - backend-network
 
   frontend:
-    image: warre4/front-end
     build: ./web
     expose:
       - 5000
     environment:
       - FLASK_SECRET_KEY=TkEgMC0xOD8=
       - JWT_SECRET_KEY=SG9wZWxpamsgZ2VicnVpa3QgZWVuIHN0dWRlbnQgZGl0IG9vaXQgbnV0dGlnLg==
-#    labels:
-#      - traefik.enable=false
     depends_on:
       - api
     networks:
       - frontend-network
 
   nginx:
-    image: warre4/nginx
     build: ./nginx
     ports:
-      - 69:80
-#    labels:
-#      - "traefik.http.routers.nginx.rule=Host(`frontend.local`)"
+      - 8000:80
     depends_on:
       - frontend
     volumes:
@@ -81,21 +54,26 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready", "-d", "db_prod"]
       interval: 10s
-#    labels:
-#      - traefik.enable=false
+    networks:
+      - backend-network
     volumes:
       - postgres:/var/lib/postgresql/data/
 
-#  whoami:
-#    # A container that exposes an API to show its IP address
-#    image: traefik/whoami
-#    labels:
-#      - "traefik.http.routers.whoami.rule=Host(`whoami.docker.localhost`)"
-#    expose:
-#      - 80
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    volumes:
+      - ./logstash/pipelines:/pipelines:ro
+      - ./data:/data:ro
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml
+    entrypoint: [ "sh", "-c", "sleep 2073600" ]
+    networks:
+      - backend-network
+      - frontend-network
 
   setup:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    depends_on:
+      - logstash
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
     user: "0"
@@ -154,6 +132,8 @@ services:
       interval: 1s
       timeout: 5s
       retries: 120
+    networks:
+      - backend-network
 
   es01:
     depends_on:
@@ -198,6 +178,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+    networks:
+      - backend-network
 
   es02:
     depends_on:
@@ -238,6 +220,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+    networks:
+      - backend-network
 
   es03:
     depends_on:
@@ -278,6 +262,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+    networks:
+      - backend-network
 
   kibana:
     depends_on:
@@ -309,6 +295,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
+    networks:
+      - backend-network
 
 volumes:
   certs:
@@ -325,3 +313,4 @@ volumes:
 
 networks:
   frontend-network:
+  backend-network:
